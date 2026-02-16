@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic Tac Toe - By YEL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(-45deg, #000, #001f1f, #000, #002b2b);
+            background-size: 400% 400%;
+            animation: bg 10s infinite alternate;
+            color: #0ff;
+        }
+
+        @keyframes bg {
+            0% { background-position: left; }
+            100% { background-position: right; }
+        }
+
+        h1 {
+            text-shadow: 0 0 15px #0ff;
+            margin-top: 20px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(80px, 120px));
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .cell {
+            aspect-ratio: 1/1;
+            font-size: 40px;
+            cursor: pointer;
+            border: 2px solid #0ff;
+            background: #111;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+            transition: 0.2s;
+        }
+
+        .cell:hover {
+            background: #0ff;
+            color: #111;
+        }
+
+        .cell.win {
+            background: #0ff;
+            color: #111;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        select, button {
+            margin-top: 10px;
+            padding: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-size: 18px;
+        }
+
+        #score {
+            margin-top: 10px;
+        }
+
+        #creator {
+            margin-top: 25px;
+            font-size: 14px;
+            opacity: 0.7;
+            text-shadow: 0 0 8px #0ff;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Tic Tac Toe 🤖</h1>
+
+<select id="difficulty" onchange="saveDifficulty()">
+    <option value="easy">Easy</option>
+    <option value="medium">Medium</option>
+    <option value="hard">Hard</option>
+</select>
+
+<div id="board"></div>
+
+<div id="status"></div>
+<div id="score"></div>
+
+<button onclick="restart()">Restart</button>
+
+<div id="creator">Created by YEL</div>
+
+<audio id="clickSound" src="https://www.soundjay.com/button/sounds/button-16.mp3"></audio>
+<audio id="winSound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"></audio>
+
+<script>
+const board = document.getElementById("board");
+const statusText = document.getElementById("status");
+const scoreText = document.getElementById("score");
+const difficultySelect = document.getElementById("difficulty");
+const clickSound = document.getElementById("clickSound");
+const winSound = document.getElementById("winSound");
+
+let cells = [];
+let playerScore = 0;
+let computerScore = 0;
+let gameActive = true;
+
+// Load saved difficulty
+if(localStorage.getItem("difficulty")){
+    difficultySelect.value = localStorage.getItem("difficulty");
+}
+
+function saveDifficulty(){
+    // Save difficulty selection
+    localStorage.setItem("difficulty", difficultySelect.value);
+
+    // Reset scores when difficulty changes
+    playerScore = 0;
+    computerScore = 0;
+    updateScore();
+}
+
+function createBoard() {
+    board.innerHTML = "";
+    cells = [];
+    gameActive = true;
+
+    for (let i = 0; i < 9; i++) {
+        const cell = document.createElement("button");
+        cell.classList.add("cell");
+        cell.addEventListener("click", () => playerMove(i));
+        board.appendChild(cell);
+        cells.push(cell);
+    }
+
+    updateScore();
+    statusText.textContent = "Your turn (X)";
+}
+
+function playerMove(index) {
+    if (!gameActive || cells[index].textContent !== "") return;
+
+    clickSound.play();
+    cells[index].textContent = "X";
+
+    if (checkWinner("X")) {
+        winGame("You win!");
+        playerScore++;
+        updateScore();
+        return;
+    }
+
+    if (isDraw()) return;
+
+    setTimeout(computerMove, 400);
+}
+
+function computerMove() {
+    let difficulty = difficultySelect.value;
+    let move;
+
+    if (difficulty === "easy") {
+        move = randomMove();
+    } else if (difficulty === "medium") {
+        move = Math.random() < 0.5 ? bestMove() : randomMove();
+    } else {
+        move = bestMove();
+    }
+
+    if (move !== undefined) {
+        cells[move].textContent = "O";
+        clickSound.play();
+
+        if (checkWinner("O")) {
+            winGame("Computer wins!");
+            computerScore++;
+            updateScore();
+            return;
+        }
+
+        isDraw();
+    }
+}
+
+function randomMove() {
+    let empty = cells.map((c,i)=>c.textContent===""?i:null).filter(v=>v!==null);
+    return empty[Math.floor(Math.random()*empty.length)];
+}
+
+function bestMove() {
+    let bestScore = -Infinity;
+    let move;
+
+    for (let i=0;i<9;i++){
+        if (cells[i].textContent===""){
+            cells[i].textContent="O";
+            let score=minimax(false);
+            cells[i].textContent="";
+            if(score>bestScore){
+                bestScore=score;
+                move=i;
+            }
+        }
+    }
+    return move;
+}
+
+function minimax(isMax){
+    if(checkWinner("O")) return 1;
+    if(checkWinner("X")) return -1;
+    if(cells.every(c=>c.textContent!=="")) return 0;
+
+    if(isMax){
+        let best=-Infinity;
+        for(let i=0;i<9;i++){
+            if(cells[i].textContent===""){
+                cells[i].textContent="O";
+                best=Math.max(best,minimax(false));
+                cells[i].textContent="";
+            }
+        }
+        return best;
+    } else {
+        let best=Infinity;
+        for(let i=0;i<9;i++){
+            if(cells[i].textContent===""){
+                cells[i].textContent="X";
+                best=Math.min(best,minimax(true));
+                cells[i].textContent="";
+            }
+        }
+        return best;
+    }
+}
+
+function checkWinner(player){
+    const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(let combo of wins){
+        if(combo.every(i=>cells[i].textContent===player)){
+            combo.forEach(i=>cells[i].classList.add("win"));
+            return true;
+        }
+    }
+    return false;
+}
+
+function winGame(message){
+    winSound.play();
+    statusText.textContent = message;
+    gameActive=false;
+}
+
+function isDraw(){
+    if(cells.every(c=>c.textContent!=="")){
+        statusText.textContent="It's a draw!";
+        gameActive=false;
+        return true;
+    }
+    return false;
+}
+
+function updateScore(){
+    scoreText.textContent="Player: "+playerScore+" | Computer: "+computerScore;
+}
+
+// Restart: keep scores, just reset board
+function restart(){
+    createBoard();
+}
+
+createBoard();
+</script>
+
+</body>
+</html>
